@@ -26,8 +26,8 @@ app = FastAPI(title="Truck Planner API", version="0.1.0")
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[o.strip()
-                   for o in settings.cors_allowed_origins.split(",")],
+    allow_origins=[o.strip() for o in settings.cors_allowed_origins.split(",")],
+    allow_origin_regex=settings.cors_allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
