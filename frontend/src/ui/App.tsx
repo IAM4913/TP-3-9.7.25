@@ -1,5 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import axios from 'axios'
+
+// Use VITE_API_URL in production (Vercel), fall back to /api for local proxy
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api'
+const api = axios.create({ baseURL: API_BASE })
 
 export function App() {
     const [file, setFile] = useState<File | null>(null)
@@ -24,42 +28,42 @@ export function App() {
     const [sections, setSections] = useState<Record<string, number[]>>({})
     const [metrics, setMetrics] = useState<any>(null)
 
-        async function presignAndUpload(f: File) {
-            try {
-                setStatus('Presigning...')
-                const presign = await axios.post('/api/upload/presign', {
-                    filename: f.name,
-                    content_type: f.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                }, { timeout: 10000 })
-                const { key, presigned } = presign.data
+    async function presignAndUpload(f: File) {
+        try {
+            setStatus('Presigning...')
+            const presign = await api.post('/upload/presign', {
+                filename: f.name,
+                content_type: f.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            }, { timeout: 10000 })
+            const { key, presigned } = presign.data
 
-                setStatus('Uploading to S3...')
-                const formData = new FormData()
-                Object.entries(presigned.fields).forEach(([k, v]) => formData.append(k, v as string))
-                formData.append('Content-Type', f.type)
-                formData.append('file', f)
-                const uploadResp = await fetch(presigned.url, { method: 'POST', body: formData })
-                if (!uploadResp.ok) {
-                    const text = await uploadResp.text()
-                    throw new Error(`S3 upload failed: ${uploadResp.status} ${text}`)
-                }
-
-                setS3Key(key)
-                setStatus('Generating preview...')
-                const pv = await axios.post('/api/upload/preview', { s3_key: key }, { timeout: 15000 })
-                setPreview(pv.data)
-                setStatus('Uploaded and previewed')
-            } catch (err: any) {
-                const msg = err?.response?.data?.detail || err?.message || String(err)
-                setStatus(`Error: ${msg}`)
-                console.error('Upload/Preview error', err)
+            setStatus('Uploading to S3...')
+            const formData = new FormData()
+            Object.entries(presigned.fields).forEach(([k, v]) => formData.append(k, v as string))
+            formData.append('Content-Type', f.type)
+            formData.append('file', f)
+            const uploadResp = await fetch(presigned.url, { method: 'POST', body: formData })
+            if (!uploadResp.ok) {
+                const text = await uploadResp.text()
+                throw new Error(`S3 upload failed: ${uploadResp.status} ${text}`)
             }
+
+            setS3Key(key)
+            setStatus('Generating preview...')
+            const pv = await api.post('/upload/preview', { s3_key: key }, { timeout: 15000 })
+            setPreview(pv.data)
+            setStatus('Uploaded and previewed')
+        } catch (err: any) {
+            const msg = err?.response?.data?.detail || err?.message || String(err)
+            setStatus(`Error: ${msg}`)
+            console.error('Upload/Preview error', err)
         }
+    }
 
     async function runOptimize() {
         if (!s3Key) return
         setStatus('Optimizing...')
-        const resp = await axios.post('/api/optimize', {
+    const resp = await api.post('/optimize', {
             s3_key: s3Key,
             planning_whse: planningWhse,
             allow_multi_stop: allowMultiStop,
@@ -72,8 +76,8 @@ export function App() {
         setStatus('Optimization complete')
     }
 
-    async function download(url: string, filename: string, body: any) {
-        const resp = await axios.post(url, body, { responseType: 'blob' })
+    async function download(path: string, filename: string, body: any) {
+        const resp = await api.post(path, body, { responseType: 'blob' })
         const blob = new Blob([resp.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
@@ -142,13 +146,13 @@ export function App() {
                 <button
                     className="px-4 py-2 bg-gray-700 text-white rounded disabled:opacity-50"
                     disabled={!s3Key}
-                    onClick={() => s3Key && download('/api/export/trucks', 'truck_optimization_results.xlsx', { s3_key: s3Key })}
+                    onClick={() => s3Key && download('/export/trucks', 'truck_optimization_results.xlsx', { s3_key: s3Key })}
                 >Export Standard</button>
 
                 <button
                     className="px-4 py-2 bg-gray-700 text-white rounded disabled:opacity-50"
                     disabled={!s3Key}
-                    onClick={() => s3Key && download('/api/export/dh-load-list', 'dh_load_list.xlsx', { s3_key: s3Key })}
+                    onClick={() => s3Key && download('/export/dh-load-list', 'dh_load_list.xlsx', { s3_key: s3Key })}
                 >Export DH Load List</button>
             </div>
 
