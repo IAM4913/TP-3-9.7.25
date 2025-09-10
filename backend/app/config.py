@@ -13,7 +13,8 @@ class Settings(BaseModel):
     app_env: str = os.getenv("APP_ENV", "local")
     cors_allowed_origins: str = os.getenv("CORS_ALLOWED_ORIGINS", "*")
     # Optional regex to allow wildcard subdomains (e.g., *.vercel.app)
-    cors_allowed_origin_regex: str | None = os.getenv("CORS_ALLOWED_ORIGIN_REGEX")
+    cors_allowed_origin_regex: str | None = os.getenv(
+        "CORS_ALLOWED_ORIGIN_REGEX")
 
     # AWS / S3
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")

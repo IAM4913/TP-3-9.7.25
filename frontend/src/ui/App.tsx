@@ -3,7 +3,13 @@ import axios from 'axios'
 
 // Use VITE_API_URL in production (Vercel), fall back to /api for local proxy
 const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api'
-const api = axios.create({ baseURL: API_BASE })
+const api = axios.create({ 
+    baseURL: API_BASE,
+    headers: {
+        // Skip ngrok browser warning when using ngrok URLs
+        'ngrok-skip-browser-warning': 'true'
+    }
+})
 
 export function App() {
     const [file, setFile] = useState<File | null>(null)
@@ -63,7 +69,7 @@ export function App() {
     async function runOptimize() {
         if (!s3Key) return
         setStatus('Optimizing...')
-    const resp = await api.post('/optimize', {
+        const resp = await api.post('/optimize', {
             s3_key: s3Key,
             planning_whse: planningWhse,
             allow_multi_stop: allowMultiStop,
